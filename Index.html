@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JOB MAIL - TXT MODE</title>
+<meta name="description" content="Black screen green text email stripper - strip job emails to pure text">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#000;
+    color:#00ff41;
+    font-family:'JetBrains Mono',Courier,monospace;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background:repeating-linear-gradient(0deg,rgba(0,255,65,0.03) 0px,rgba(0,255,65,0.03) 1px,transparent 1px,transparent 2px);
+    pointer-events:none;z-index:1;
+  }
+  header{
+    border-bottom:1px solid #00ff41;
+    padding:14px 20px;
+    display:flex;flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    position:relative;z-index:2;
+    background:#000;
+    box-shadow:0 0 20px rgba(0,255,65,0.3);
+  }
+  .logo{font-weight:700;letter-spacing:2px;font-size:1.1rem}
+  .logo span{color:#fff}
+  .stats{font-size:0.75rem;opacity:0.8;display:flex;gap:16px;flex-wrap:wrap}
+  .stats b{color:#fff}
+  main{
+    display:flex;
+    flex:1;
+    gap:1px;
+    background:#00ff41;
+    position:relative;z-index:2;
+  }
+  .panel{
+    background:#000;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .panel-head{
+    padding:10px 14px;
+    border-bottom:1px dashed #00ff41;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    display:flex;justify-content:space-between;align-items:center;
+    background:#0a0a0a;
+  }
+  .controls{display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:#050505;border-bottom:1px solid #003300}
+  button{
+    background:#000;
+    color:#00ff41;
+    border:1px solid #00ff41;
+    padding:6px 12px;
+    font-family:inherit;
+    font-size:0.75rem;
+    cursor:pointer;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    transition:all 0.15s;
+  }
+  button:hover{background:#00ff41;color:#000;box-shadow:0 0 10px #00ff41}
+  button.primary{background:#00ff41;color:#000;font-weight:700}
+  button.primary:hover{background:#fff;border-color:#fff}
+  button:disabled{opacity:0.3;cursor:not-allowed}
+  textarea{
+    flex:1;
+    background:#000;
+    color:#00ff41;
+    border:none;
+    padding:14px;
+    font-family:inherit;
+    font-size:0.85rem;
+    resize:none;
+    outline:none;
+    line-height:1.5;
+  }
+  textarea::placeholder{color:#004400}
+  #output{
+    flex:1;
+    padding:14px;
+    white-space:pre-wrap;
+    word-break:break-word;
+    overflow-y:auto;
+    font-size:0.85rem;
+    line-height:1.6;
+    background:#000;
+  }
+  #output:empty::before{
+    content:"> Waiting for input...\A> Paste job email and hit [STRIP TO TXT]\A> _";
+    white-space:pre;
+    color:#004400;
+  }
+  .toggles{padding:8px 10px;display:flex;gap:14px;flex-wrap:wrap;font-size:0.7rem;background:#080808;border-bottom:1px solid #111}
+  .toggles label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .toggles input{accent-color:#00ff41}
+  footer{
+    padding:10px 20px;
+    border-top:1px solid #00ff41;
+    font-size:0.65rem;
+    opacity:0.5;
+    text-align:center;
+    position:relative;z-index:2;
+    background:#000;
+  }
+  .blink::after{content:"█";animation:blink 1s steps(2,start) infinite;margin-left:2px}
+  @keyframes blink{0%{opacity:1}50%{opacity:0}}
+  @media(max-width:800px){
+    main{flex-direction:column}
+    .panel{min-height:40vh}
+  }
+  .glow{ text-shadow:0 0 8px #00ff41}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">JOB_MAIL.TXT <span>// v1.0</span> <span class="blink"></span></div>
+  <div class="stats">
+    <span>IN: <b id="inLen">0</b></span>
+    <span>OUT: <b id="outLen">0</b></span>
+    <span>SAVED: <b id="saved">0%</b></span>
+    <span>READ: <b id="readTime">~0s</b></span>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-head">
+      <span>[INPUT] paste_raw_email.html</span>
+      <span style="opacity:0.5">CTRL+V</span>
+    </div>
+    <div class="controls">
+      <button class="primary" onclick="stripEmail()">[STRIP TO TXT]</button>
+      <button onclick="pasteClipboard()">[PASTE]</button>
+      <button onclick="clearAll()">[CLEAR]</button>
+      <button onclick="loadDemo()">[DEMO]</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="removeQuotes" checked> remove > quotes</label>
+      <label><input type="checkbox" id="aggressive" checked> aggressive (cut disclaimers)</label>
+      <label><input type="checkbox" id="keepLinks"> keep URLs</label>
+    </div>
+    <textarea id="input" placeholder="Paste job email HTML or raw text here...
+
+You can also drag & drop .eml / .txt files
+
+Tip: In Gmail mobile, Select All > Copy > Paste here"></textarea>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="glow">[OUTPUT] stripped.txt</span>
+      <span id="outputStatus">READY</span>
+    </div>
+    <div class="controls">
+      <button class="primary" onclick="copyOutput()">[COPY TXT]</button>
+      <button onclick="downloadTxt()">[DOWNLOAD .txt]</button>
+      <button onclick="selectOutput()">[SELECT ALL]</button>
+    </div>
+    <div id="output"></div>
+  </section>
+</main>
+
+<footer>
+  100% offline • no tracking • single file • works on GitHub Pages • built for job emails that need 15 min scroll → 20 sec read
+</footer>
+
+<script>
+const inputEl = document.getElementById('input');
+const outputEl = document.getElementById('output');
+
+function updateStats(inText, outText){
+  const inLen = inText.length;
+  const outLen = outText.length;
+  const saved = inLen ? Math.round((1 - outLen/inLen)*100) : 0;
+  const words = outText.split(/\s+/).filter(Boolean).length;
+  const readSec = Math.max(1, Math.round(words/3.5)); // ~210 wpm
+  document.getElementById('inLen').textContent = inLen;
+  document.getElementById('outLen').textContent = outLen;
+  document.getElementById('saved').textContent = (saved>0?saved:0)+'%';
+  document.getElementById('readTime').textContent = '~'+readSec+'s';
+}
+
+function stripEmail(){
+  let raw = inputEl.value;
+  if(!raw.trim()){ outputEl.textContent = "> ERROR: No input detected\n> Paste an email first _"; return; }
+  let text = raw;
+
+  // If looks like HTML, parse it
+  if(/<[a-z][\s\S]*>/i.test(raw)){
+    try{
+      const doc = new DOMParser().parseFromString(raw, 'text/html');
+      // remove junk elements
+      doc.querySelectorAll('style, script, noscript, img, svg, canvas, iframe, form').forEach(e=>e.remove());
+      // get text with line breaks
+      // Replace <br>, <p>, <div>, <tr> with newline before extracting
+      doc.querySelectorAll('br').forEach(br=>br.replaceWith('\n'));
+      doc.querySelectorAll('p, div, h1, h2, h3, h4, li, tr').forEach(el=>{
+        el.prepend('\n');
+        el.append('\n');
+      });
+      text = doc.body.innerText || doc.body.textContent || raw;
+    }catch(e){ text = raw.replace(/<[^>]+>/g, ' '); }
+  }
+
+  // Decode entities
+  const ta = document.createElement('textarea');
+  ta.innerHTML = text;
+  text = ta.value;
+
+  // Normalize
+  text = text.replace(/\r/g, '').replace(/\t/g, ' ');
+
+  // Optional: remove quoted replies
+  if(document.getElementById('removeQuotes').checked){
+    text = text.split('\n').filter(l=>!l.trim().startsWith('>')).join('\n');
+  }
+
+  // Aggressive: cut disclaimers and signatures
+  if(document.getElementById('aggressive').checked){
+    const cutMarkers = [
+      /--\s*\n/, /_{2,}\n/, /Best regards[\s\S]*$/i,
+      /Confidentiality.*$/is, /Disclaimer.*$/is,
+      /This email and any attachments.*$/is,
+      /This message contains confidential.*$/is,
+      /Please consider the environment.*$/is,
+      /Sent from my iPhone.*$/im, /Get Outlook for.*$/im,
+      /_{5,}/,
+      /From:.*Sent:.*To:.*Subject:/is // outlook chain header, keep only first occurrence
+    ];
+    // cut at first disclaimer-like marker after 40% of content
+    let cutIndex = -1;
+    const lower = text.toLowerCase();
+    const markers = ['confidentiality', 'disclaimer', 'this email and any attachments', 'please consider the environment', 'this message contains confidential'];
+    for(let m of markers){
+      let idx = lower.indexOf(m);
+      if(idx>text.length*0.4 && (cutIndex===-1 || idx<cutIndex)) cutIndex = idx;
+    }
+    if(cutIndex!==-1) text = text.slice(0, cutIndex).trim();
+
+    // Remove repeated From:/Sent: chains - keep first 2 lines only if they look like header
+    text = text.replace(/(\nFrom:.*\nSent:.*\nTo:.*\nSubject:.*)+/gi, '\n--- Quoted thread removed ---\n');
+  }
+
+  // URLs handling
+  if(!document.getElementById('keepLinks').checked){
+    // remove long tracking urls but keep readable domains? For TXT mode we remove most
+    text = text.replace(/https?:\/\/\S+/g, (url)=>{
+      if(url.length>60) return '';
+      return url;
+    });
+  }
+
+  // Clean whitespace
+  text = text.replace(/[ ]{2,}/g, ' ');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.trim();
+
+  // Final: if still too much blank, compact
+  if(text.length===0) text = "[No readable text found - try disabling aggressive mode]";
+
+  outputEl.textContent = text;
+  updateStats(raw, text);
+  document.getElementById('outputStatus').textContent = "STRIPPED OK";
+}
+
+async function pasteClipboard(){
+  try{
+    const t = await navigator.clipboard.readText();
+    inputEl.value = t;
+    stripEmail();
+  }catch(e){
+    inputEl.focus();
+    document.execCommand('paste');
+  }
+}
+function clearAll(){
+  inputEl.value=''; outputEl.textContent=''; updateStats('','');
+  document.getElementById('outputStatus').textContent="READY";
+}
+function copyOutput(){
+  const txt = outputEl.textContent;
+  if(!txt) return;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const s = document.getElementById('outputStatus');
+    s.textContent="COPIED!";
+    setTimeout(()=>s.textContent="STRIPPED OK",1500);
+  });
+}
+function downloadTxt(){
+  const txt = outputEl.textContent;
+  if(!txt) return;
+  const blob = new Blob([txt], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'job-email-stripped-'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();
+}
+function selectOutput(){
+  const range = document.createRange();
+  range.selectNodeContents(outputEl);
+  const sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(range);
+}
+function loadDemo(){
+  inputEl.value = `<div style="background:#f0f0f0;padding:20px">
+<img src="logo.png"><h1>ACME Corp Careers</h1>
+<p>Dear Candidate,</p>
+<p>Thank you for applying for <b>Senior Role</b> at ACME. We are pleased to inform you...</p>
+<p>Your interview is scheduled for Monday 10am.</p>
+<br><br>--
+<br>Best regards,<br>John Smith<br>Senior Recruiter<br>ACME Corp<br>Phone: 123-456<br>www.acme.com
+<br><br>--------------------------------------------------------------------------------
+<br>Confidentiality Notice: This email and any attachments are confidential and may be legally privileged. If you are not the intended recipient... [2 more paragraphs]
+<br><br>Please consider the environment before printing.
+<div>From: you@gmail.com<br>Sent: Monday<br>To: jobs@acme.com<br>Subject: Re: Application</div>
+> Previous quoted message...
+</div>`;
+  stripEmail();
+}
+
+// drag & drop
+inputEl.addEventListener('dragover', e=>{e.preventDefault(); inputEl.style.background='#001100'});
+inputEl.addEventListener('dragleave', ()=>inputEl.style.background='#000');
+inputEl.addEventListener('drop', async e=>{
+  e.preventDefault(); inputEl.style.background='#000';
+  const file = e.dataTransfer.files[0];
+  if(!file) return;
+  const txt = await file.text();
+  inputEl.value = txt;
+  stripEmail();
+});
+
+// auto-strip on paste
+inputEl.addEventListener('paste', ()=>setTimeout(stripEmail, 100));
+
+// keyboard
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey) && e.key==='Enter') stripEmail();
+});
+</script>
+</body>
+</html>
